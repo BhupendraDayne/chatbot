@@ -3,11 +3,40 @@ import { useAppContext } from "../context/AppContext";
 import { assets } from "../assets/assets";
 import moment from "moment"
 import Credits from "../pages/Credits";
+import toast from "react-hot-toast";
 
 const Slidebar = ({isMenuOpen,setMenuOpen}) => {
-  const { chats, setSelectedChat, theme, setTheme, user,navigate  } = useAppContext();
+  const { chats, setSelectedChat, theme, setTheme, user, navigate, createNewChat, 
+    axios,  setChats ,fetchUserChat , setToken ,token } = useAppContext();
   const [search, setSearch] = useState("");
 
+//logout function
+
+const logout = () =>{
+  localStorage.removeItem('token')
+  setToken(null)
+  toast.success('Logged out successfully ')
+}
+// delete function
+
+const deleteChat = async (e,chatId) => {
+  try {
+    e.stopPropagation()
+    const confirm = window.confirm('Are you sure you want to delete this chat? ')
+    if (!confirm) return 
+      const { data } = await axios.post("/api/chat/delete",{chatId}, {
+        headers: { Authorization: token },
+      });
+
+      if(data.success){
+        setChats(prev =>prev.filter(chat =>chat._id !== chatId))
+        await fetchUserChat()
+        toast.success(data.message)
+      }
+  } catch (error) {
+     toast.error(error.message)
+  }
+}
   return (
     <div
       className={`flex flex-col h-screen min-w-72 p-4.5 
@@ -24,6 +53,7 @@ const Slidebar = ({isMenuOpen,setMenuOpen}) => {
 
       {/* New Chat Button */}
       <button
+         onClick={createNewChat}
         className="flex justify-center items-center py-2 mt-5 text-white 
         bg-gradient-to-r from-[#A456F7] to-[#3D81F6] text-sm rounded-md cursor-pointer"
       >
@@ -81,24 +111,21 @@ const Slidebar = ({isMenuOpen,setMenuOpen}) => {
   <img
     src={assets.bin_icon}
     alt="delete"
-    onClick={(e) => {
-      e.stopPropagation(); // prevents chat click event
-      // deleteChat(chat._id); // optional delete function
-    }}
+    onClick={e => toast.promise(deleteChat(e,chat._id),{loading:'deleting...'})}
     className="hidden group-hover:block w-4 cursor-pointer not-dark:invert"
   />
 </div>
 
           ))}
       </div>
-      {/* community image */}
+      {/* community image
      <div onClick={()=>{navigate("/community"); setMenuOpen(false)}} className="flex items-center gap-2 p-3 mt-4 border border-gray-300 
      dark:border-white/15 rounded-md cursor-pointer hover:scale-103 transition-all">
         <img src={assets.gallery_icon} className="w-4.5  " alt="" />
       <div className="flex flex-col text-sm">
         <p>Community Images</p>
       </div>
-    </div>
+    </div> */}
       {/* credite purchess */}
      <div onClick={()=>{navigate("/credits")}}  className="flex items-center gap-2 p-3 mt-3 border border-gray-300 
      dark:border-white/15 rounded-md cursor-pointer hover:scale-103 transition-all">
@@ -129,7 +156,7 @@ const Slidebar = ({isMenuOpen,setMenuOpen}) => {
      dark:border-white/15 rounded-md cursor-pointer group">
         <img src={assets.user_icon} className="w-8 rounded-full  " alt="" />
         <p className="flex-1 text-sm dark:text-primary truncate">{user ? user.name : "Login Your Account"}</p>
-        {user && <img src={assets.logout_icon} className="h-5 cursor-pointer hidden not-dark:invert group-hover:block"/>}
+        {user && <img onClick={logout} src={assets.logout_icon} className="h-5 cursor-pointer hidden not-dark:invert group-hover:block"/>}
     </div>
     {/* closed icon */}
     <img onClick={()=>setMenuOpen(false)} src={assets.close_icon} className="absolute top-3 right-3 w-3 h-5 cursor-pointer md:hidden not-dark:invert" alt="" />
