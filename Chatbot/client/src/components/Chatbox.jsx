@@ -137,8 +137,8 @@ const Chatbox = () => {
               className="w-full max-w-56 sm:max-w-68"
               alt=""
             />
-            <p className="mt-3 text-4xl sm:text-6xl text-center text-gray-500 font-medium dark:text-white">
-              Ask Me Anything.
+            <p className="mt-3 text-3xl sm:text-5xl text-center text-gray-500 font-medium dark:text-white">
+               Ask Your Health-Related Questions
             </p>
           </div>
         )}
