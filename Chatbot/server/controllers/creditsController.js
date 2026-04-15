@@ -52,7 +52,7 @@ export const getPlans = async (req, res) => {
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 // api controller for purchasing plan
- export const purchasePlan = async (req, res) => {
+export const purchasePlan = async (req, res) => {
   try {
     const { planId } = req.body;
     const userId = req.user._id;
@@ -73,6 +73,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
     const { origin } = req.headers;
 
+    if (!origin) {
+      return res.json({ success: false, message: "Invalid request origin" });
+    }
+
     const session = await stripe.checkout.sessions.create({
       line_items: [
         {
@@ -91,16 +95,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
       cancel_url: `${origin}`,
       metadata: {
         transactionId: transaction._id.toString(),
-        appId: 'chatbot',
+        appId: "chatbot",
       },
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60, // expire in 30 min
     });
 
     // ✅ yahan response send karo
     res.json({ success: true, url: session.url });
-
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
 };
-

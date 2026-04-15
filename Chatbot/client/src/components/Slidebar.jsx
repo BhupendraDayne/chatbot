@@ -16,6 +16,7 @@ const logout = () =>{
   localStorage.removeItem('token')
   setToken(null)
   toast.success('Logged out successfully ')
+  window.location("/login")
 }
 // delete function
 
@@ -31,7 +32,7 @@ const deleteChat = async (e,chatId) => {
       if(data.success){
         setChats(prev =>prev.filter(chat =>chat._id !== chatId))
         await fetchUserChat()
-        toast.success(data.message)
+        toast.success(console.log("error",data))
       }
   } catch (error) {
      toast.error(error.message)

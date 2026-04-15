@@ -7,11 +7,12 @@ import toast from 'react-hot-toast';
 import { Mic, MicOff } from 'lucide-react';
 import gsap from 'gsap';
 import Credits from '../pages/Credits';
+import axios from 'axios';
 
 const Chatbox = () => {
   const containerRef = useRef(null);
   const micRef = useRef(null);
-  const { selectedChat, theme, user, axios, token, setUser } = useAppContext();
+  const { selectedChat, theme, user, token, setUser } = useAppContext();
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);

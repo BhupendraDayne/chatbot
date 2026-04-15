@@ -5,7 +5,7 @@ import Chat from "../models/chat.js";
 // we create a function to genrate JWT token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "30d",
+    expiresIn: "365d",
   });
 };
 //API to register user
@@ -36,7 +36,7 @@ export const loginUser = async (req, res) => {
         return res.json({ success: true, token });
       }
     }
-    return res.json({ success: false, message: "InVailed email or password" });
+    return res.json({ success: false, message: "Invalid email or password" });
   } catch (error) {
     return res.json({ success: false, message: error.message });
   }
@@ -52,26 +52,26 @@ export const getUser = async (req, res) => {
 };
 
 // api to get published image
-export const getPublishedImages =async (req,res) => {
-   try {
-     const publishedImageMessage = await Chat.aggregate([
-      {$unwind:"$message"},
+export const getPublishedImages = async (req, res) => {
+  try {
+    const publishedImageMessage = await Chat.aggregate([
+      { $unwind: "$messages" },
       {
-        $match:{
+        $match: {
           "messages.isImage": true,
-          "messages.ispublished": true
-        }
+          "messages.isPublished": true,
+        },
       },
       {
-        $project:{
-           _id:0,
-           imageUrl:"$messages.content",
-           userName: "$userName",
-        }
-      }
-     ])
-     res.json({success:true,images:publishedImageMessage.reverse()})
-   } catch (error) {
-     return res.json({ success: false, message: error.message });
-   }
-}
+        $project: {
+          _id: 0,
+          imageUrl: "$messages.content",
+          userName: "$userName",
+        },
+      },
+    ]);
+    res.json({ success: true, images: publishedImageMessage.reverse() });
+  } catch (error) {
+    return res.json({ success: false, message: error.message });
+  }
+};

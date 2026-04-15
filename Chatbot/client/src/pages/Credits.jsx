@@ -3,10 +3,11 @@ import { dummyPlans } from "../assets/assets";
 import Loading from "./Loading";
 import {useAppContext} from '../context/AppContext'
 import toast from "react-hot-toast";
+import axios from "axios";
 const Credits = () => {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const {token, axios} =useAppContext()
+  const {token} =useAppContext()
 
   const fetchPlans = async () => {
      try {
