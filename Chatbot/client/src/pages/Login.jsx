@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAppContext } from "../context/AppContext";
 import toast from "react-hot-toast";
 import { Axios } from "axios";
+// import { data, data, data, data } from "react-router-dom";
 
 const Login = () => {
   const [state, setState] = useState("login");
@@ -12,13 +13,24 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     //create api ulr 
-    const url = state === "login" ? '/api/user/login' : '/api/user/register'
-
+    const url = state === "login" 
+    ? '/api/user/login'
+     : '/api/user/register'
+  
     try {
-      const {data} = await axios.post(url,{name,email,password})
+      //  const {data} = await axios.post(url,{name,email,password})
+      const { data } = await axios.post(
+  `http://localhost:3000${url}`,
+  state === "login"
+    ? { email: email.trim(), password: password.trim() }
+     :
+  { name: name.trim(), email: email.trim(), password: password.trim() }
+)
+
       if (data.success) {
         setToken(data.token)
-        localStorage.setItem('token', data.token)
+        localStorage.setItem('token',
+           data.token)
       }else{
         toast.error(data.message)
       }
