@@ -7,7 +7,7 @@ import toast from "react-hot-toast";
 
 axios.defaults.baseURL = import.meta.env.VITE_SERVER_URL;
 
-console.log("Server URL:", import.meta.env.VITE_SERVER_URL);
+// console.log("Server URL:", import.meta.env.VITE_SERVER_URL);
 
 const AppContext = createContext();
 

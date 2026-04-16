@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useAppContext } from "../context/AppContext";
 import toast from "react-hot-toast";
-import { Axios } from "axios";
+import { Navigate } from "react-router-dom";
+// import { Axios } from "axios";
 // import { data, data, data, data } from "react-router-dom";
 
 const Login = () => {
@@ -28,11 +29,14 @@ const Login = () => {
 )
 
       if (data.success) {
+        console.log("Login/Register Success:", data);
         setToken(data.token)
         localStorage.setItem('token',
            data.token)
+            
       }else{
         toast.error(data.message)
+        console.log(data.message)
       }
     } catch (error) {
       toast.error(error.message)
