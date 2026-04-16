@@ -18,6 +18,7 @@ export const registerUser = async (req, res) => {
     }
     const user = await User.create({ name, email, password });
     const token = generateToken(user._id);
+    console.log("registration done");
     res.json({ success: true, token });
   } catch (error) {
     return res.json({ success: false, message: error.message });
