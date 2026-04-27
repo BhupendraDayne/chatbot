@@ -6,6 +6,8 @@ import userRouter from "./routes/userRoutes.js"
 import chatRouter from "./routes/chatRoutes.js"
 import messageRoter from "./routes/messageRoutes.js"
 import creditRouter from "./routes/credit.Routes.js"
+import nearbyRouter from "./routes/nearbyRoutes.js"
+import feedbackRouter from "./routes/feedbackRoutes.js"
 import { stripeWebhooks } from "./controllers/webhooks.js"
 
 const app =express()
@@ -25,6 +27,8 @@ app.use('/api/user',userRouter)
 app.use('/api/chat',chatRouter)
 app.use("/api/message",messageRoter)
 app.use('/api/credit',creditRouter)
+app.use('/api/nearby',nearbyRouter)
+app.use('/api/feedback',feedbackRouter)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, ()=>{
@@ -32,3 +36,4 @@ app.listen(PORT, ()=>{
     
 })
 export default app;
+
