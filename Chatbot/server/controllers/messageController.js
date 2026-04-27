@@ -77,18 +77,23 @@ export const textMessageController = async (req, res) => {
       ],
     });
 
-    // 4. Send response
+    // 4. Build reply and push to chat
     const reply = {
-      ...choices[0].message,
+      role: "assistant",
+      content: choices[0].message.content,
       timestamp: Date.now(),
       isImage: false,
     };
-    res.json({ success: true, reply });
-
-    // 5. Save chat and deduct credit (After sending successful response)
     chat.messages.push(reply);
+
+    // 5. Save chat so subdocuments get _id
     await chat.save();
 
+    // 6. Return the saved reply (now includes _id)
+    const savedReply = chat.messages[chat.messages.length - 1].toObject();
+    res.json({ success: true, reply: savedReply });
+
+    // 7. Deduct credit (after sending response)
     await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
   } catch (error) {
     // Log the actual error for debugging
@@ -148,7 +153,7 @@ export const imageMessageController = async (req, res) => {
       folder: "Chatbot",
     });
 
-    // 5. Send response
+    // 5. Build reply and push to chat
     const reply = {
       role: "assistant",
       content: uploadResponse.url,
@@ -156,12 +161,16 @@ export const imageMessageController = async (req, res) => {
       isImage: true,
       isPublished,
     };
-
-    res.json({ success: true, reply });
-
-    // 6. Save chat and deduct credit
     chat.messages.push(reply);
+
+    // 6. Save chat so subdocuments get _id
     await chat.save();
+
+    // 7. Return the saved reply (now includes _id)
+    const savedReply = chat.messages[chat.messages.length - 1].toObject();
+    res.json({ success: true, reply: savedReply });
+
+    // 8. Deduct credit (after sending response)
     await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
   } catch (error) {
     // Log the actual error for debugging
@@ -169,3 +178,4 @@ export const imageMessageController = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
+
