@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { Mic, MicOff } from 'lucide-react';
 import gsap from 'gsap';
 import Credits from '../pages/Credits';
+import NearbyPlaces from './NearbyPlaces';
 
 const Chatbox = () => {
   const containerRef = useRef(null);
@@ -140,6 +141,10 @@ const Chatbox = () => {
             <p className="mt-3 text-3xl sm:text-5xl text-center text-gray-500 font-medium dark:text-white">
                Ask Your Health-Related Questions
             </p>
+                {/* 🔥 BUTTONS (Reusable Component) */}
+    <div className="mt-4">
+      <NearbyPlaces />
+    </div>
           </div>
         )}
         {messages.map((message, index) => (

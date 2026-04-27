@@ -151,19 +151,27 @@ export const textMessageController = async (req, res) => {
       }
     }
 
-    // 4. Send response
+    // 4. Build reply and push to chat
     const reply = {
       role: "assistant",
+<<<<<<< HEAD
       content: replyContent,
+=======
+      content: choices[0].message.content,
+>>>>>>> 6f3656c5191681a5d6d844c009722c35c813e655
       timestamp: Date.now(),
       isImage: false,
     };
-    res.json({ success: true, reply });
-
-    // 5. Save chat and deduct credit (After sending successful response)
     chat.messages.push(reply);
+
+    // 5. Save chat so subdocuments get _id
     await chat.save();
 
+    // 6. Return the saved reply (now includes _id)
+    const savedReply = chat.messages[chat.messages.length - 1].toObject();
+    res.json({ success: true, reply: savedReply });
+
+    // 7. Deduct credit (after sending response)
     await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
   } catch (error) {
     // Log the actual error for debugging
@@ -173,3 +181,82 @@ export const textMessageController = async (req, res) => {
 };
 
 // --- IMAGE GENERATION MESSAGE CONTROLLER (FIXED) ---
+<<<<<<< HEAD
+=======
+export const imageMessageController = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Check credits
+    if (req.user.credits < 2) {
+      return res.json({
+        success: false,
+        message: "You don't have enough credits to use this feature",
+      });
+    }
+
+    const { prompt, chatId, isPublished } = req.body;
+
+    // 1. Find chat
+    const chat = await Chat.findOne({ userId, _id: chatId });
+
+    // **FIX**: Check if chat exists (Null Check)
+    if (!chat) {
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Chat not found or invalid Chat ID.",
+        });
+    }
+
+    // 2. Push user message
+    chat.messages.push({
+      role: "user",
+      content: prompt,
+      timestamp: Date.now(),
+      isImage: false,
+    });
+
+    // 3. Image Generation Logic (No change here)
+    const encodedPrompt = encodeURIComponent(prompt);
+    const generatedImageUrl = `${process.env.IMAGEKIT_URL_ENDPOINT}/ik-genimg-prompt-${encodedPrompt}/${Date.now()}.png?tr=w-800,h-800`;
+    const aiImageResponse = await axios.get(generatedImageUrl, {
+      responseType: "arraybuffer",
+    });
+    const base64Image = `dada:image/png;base64,${Buffer.from(aiImageResponse.data, "binary").toString("base64")}`;
+
+    // 4. Upload to ImageKit
+    const uploadResponse = await imagekit.upload({
+      file: base64Image,
+      fileName: `${Date.now()}.png`,
+      folder: "Chatbot",
+    });
+
+    // 5. Build reply and push to chat
+    const reply = {
+      role: "assistant",
+      content: uploadResponse.url,
+      timestamp: Date.now(),
+      isImage: true,
+      isPublished,
+    };
+    chat.messages.push(reply);
+
+    // 6. Save chat so subdocuments get _id
+    await chat.save();
+
+    // 7. Return the saved reply (now includes _id)
+    const savedReply = chat.messages[chat.messages.length - 1].toObject();
+    res.json({ success: true, reply: savedReply });
+
+    // 8. Deduct credit (after sending response)
+    await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
+  } catch (error) {
+    // Log the actual error for debugging
+    console.error("Image Message Error:", error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+>>>>>>> 6f3656c5191681a5d6d844c009722c35c813e655
