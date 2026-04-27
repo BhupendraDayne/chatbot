@@ -6,10 +6,12 @@ const ChatSchema = new  mongoose.Schema({
     name :{type:String, required:true},
     messages: [
        {  
-           
           role:{type:String, required:true},
           content:{type:String, required:true},
-          timestamp:{type:Number,required:true}
+          timestamp:{type:Number,required:true},
+          isImage: {type: Boolean, default: false},
+          locationType: {type: String, enum: ['doctors', 'hospitals'], default: null},
+          locationData: {type: Array, default: []}
     }
     ]
     

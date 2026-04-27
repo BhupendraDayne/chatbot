@@ -44,6 +44,9 @@ const healthKeywords = [
   "acute",
   "emergency",
   "first aid",
+  "stroke",
+  "emergency",
+  "first aid",
 ];
 
 export const isHealthRelated = async (text) => {
