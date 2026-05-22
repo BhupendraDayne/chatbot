@@ -274,12 +274,15 @@ export const textMessageController = async (req, res) => {
     });
 
     const reply = {
-      ...choices[0].message,
+      role: "assistant",
+      content: choices[0].message.content,
       timestamp: Date.now(),
       isImage: false,
     };
 
     chat.messages.push(reply);
+
+    // 5. Save chat so subdocuments get _id
     await chat.save();
 
     // Respond BEFORE credit deduction — failure here is non-fatal
@@ -387,6 +390,8 @@ Return the result in clear bullet points.${prompt ? `\nUser request: ${prompt}` 
     };
 
     chat.messages.push(reply);
+
+    // 6. Save chat so subdocuments get _id
     await chat.save();
 
     // Respond BEFORE credit deduction — failure is non-fatal

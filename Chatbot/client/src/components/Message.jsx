@@ -94,7 +94,7 @@ const speakText = (text) => {
             dark:bg-[#57317C]/30 border border-[#80609F]/30 rounded-md max-w-2xl"
           >
             <p className="text-sm dark:text-primary">{message.content}</p>
-            <span className="text-xs text-gray-400 dark:text-[B1A6C0]">
+            <span className="text-xs text-gray-400">
               {moment(message.timestamp).fromNow()}
             </span>
           </div>
