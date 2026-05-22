@@ -18,6 +18,33 @@ export const initialFAQData = [
     category: 'health'
   },
   {
+    question: 'blood pressure high ho raha hai',
+    answer: 'If BP is high: if you have emergency warning signs (chest pain, severe headache, trouble breathing, weakness/numbness, vision changes, or confusion), seek emergency care immediately. Otherwise: rest quietly for 5–10 minutes, avoid caffeine/nicotine, drink water, and re-check BP correctly. If readings remain high (e.g., around ≥140/90) or you feel unwell, contact a healthcare professional for evaluation and a treatment plan. Do not self-start prescription BP medicines.',
+    tags: ['blood pressure', 'hypertension', 'bp high'],
+    category: 'health'
+  },
+  {
+    question: 'bp high',
+    answer: 'If BP is high and you have severe symptoms (chest pain, breathing difficulty, stroke-like signs), go to emergency care. If no emergency symptoms: re-check after resting, reduce salt and excess caffeine/alcohol, and follow a long-term plan with a doctor (diet, exercise, weight management, and medications if needed).',
+    tags: ['blood pressure', 'hypertension', 'bp high'],
+    category: 'health'
+  },
+  {
+    question: 'how to lower high bp now',
+    answer: 'Immediate steps: sit quietly, avoid caffeine/smoking, and re-check BP after 5–10 minutes. If BP is extremely high or you have symptoms like chest pain, severe headache, shortness of breath, weakness/numbness, or vision problems, go to emergency care. Longer-term: reduce salt, follow a DASH-style diet, exercise regularly, maintain healthy weight, limit alcohol, and take prescribed medications consistently.',
+    tags: ['blood pressure', 'hypertension', 'diet', 'exercise'],
+    category: 'health'
+  },
+  {
+  question: 'high blood pressure symptoms',
+  answer: 'High blood pressure often causes no symptoms (silent killer). When symptoms do occur: severe headache, dizziness, blurred vision, shortness of breath, chest pain, or nosebleeds. The only reliable way to know is regular BP monitoring. If you experience sudden severe symptoms, seek emergency care immediately. (Source: WHO)',
+  tags: ['blood pressure', 'hypertension', 'symptoms', 'high bp', 'bp high'],
+  category: 'health'
+},
+
+
+
+  {
     question: 'signs of covid 19?',
     answer: 'Fever, cough, shortness of breath, loss of taste/smell. Test and isolate if symptomatic. Vaccination recommended. (WHO)',
     tags: ['covid', 'symptoms'],

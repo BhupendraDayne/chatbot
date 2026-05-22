@@ -1,48 +1,147 @@
-import axios from "axios";
 import Chat from "../models/chat.js";
 
-/* ------------------------------------------------------------------ */
-/*  Helper – generate a static map image URL (OpenStreetMap based)    */
-/* ------------------------------------------------------------------ */
-const staticMapUrl = (lat, lon) =>
-  `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=15&size=400x200&maptype=mapnik&markers=${lat},${lon},ol-marker`;
+const buildContent = (emoji, label, count) =>
+  count
+    ? `${emoji} **${label}** (${count} found nearby).`
+    : `${emoji} **${label}** (No ${label.toLowerCase()} found nearby at the moment).`;
 
-/* ------------------------------------------------------------------ */
-/*  Helper – realistic mock data (used when no API key / fallback)    */
-/* ------------------------------------------------------------------ */
-const mockDoctors = (lat, lon) => [
-  { name: "Dr. A. Sharma Clinic", rating: 4.5, feedback: 124, specialty: "General Physician", address: "Sector 12, Near City Mall", lat: lat + 0.002, lon: lon + 0.001 },
-  { name: "Apollo Medical Centre", rating: 4.8, feedback: 312, specialty: "Multi-Speciality", address: "Main Road, Block B", lat: lat - 0.001, lon: lon + 0.003 },
-  { name: "City Health Care", rating: 4.2, feedback: 89, specialty: "Family Medicine", address: "Green Park Avenue", lat: lat + 0.003, lon: lon - 0.002 },
-  { name: "Wellness Point", rating: 4.6, feedback: 156, specialty: "Internal Medicine", address: "Near Metro Station", lat: lat - 0.002, lon: lon - 0.001 },
+// Predefined nearby listings for Khandwa (no Google API calls / no API keys)
+const PREDEFINED_DOCTORS = [
+  {
+    name: "Dr. Suresh Patel",
+    rating: 4.7,
+    feedback: 320,
+    specialty: "General Physician",
+    address: "Anand Nagar, Khandwa",
+  },
+  {
+    name: "Dr. Neha Sharma",
+    rating: 4.6,
+    feedback: 210,
+    specialty: "Gynecologist",
+    address: "Civil Lines, Khandwa",
+  },
+  {
+    name: "Dr. Amit Verma",
+    rating: 4.5,
+    feedback: 180,
+    specialty: "Pediatrician",
+    address: "Near Bus Stand, Khandwa",
+  },
+  {
+    name: "Dr. Pooja Jain",
+    rating: 4.8,
+    feedback: 410,
+    specialty: "Dermatologist",
+    address: "Moghat Road, Khandwa",
+  },
+  {
+    name: "Dr. Rahul Mishra",
+    rating: 4.4,
+    feedback: 150,
+    specialty: "ENT Specialist",
+    address: "Padam Nagar, Khandwa",
+  },
+  {
+    name: "Dr. Vivek Dubey",
+    rating: 4.5,
+    feedback: 198,
+    specialty: "Orthopedic",
+    address: "Near Railway Station, Khandwa",
+  },
+  {
+    name: "Dr. Meena Joshi",
+    rating: 4.7,
+    feedback: 275,
+    specialty: "Family Medicine",
+    address: "Jawar Road, Khandwa",
+  },
+  {
+    name: "Dr. Rakesh Agrawal",
+    rating: 4.3,
+    feedback: 132,
+    specialty: "Cardiologist",
+    address: "Teen Pulia, Khandwa",
+  },
+  {
+    name: "Dr. Nidhi Tiwari",
+    rating: 4.6,
+    feedback: 240,
+    specialty: "Eye Specialist",
+    address: "Near Ghantaghar, Khandwa",
+  },
 ];
 
-const mockHospitals = (lat, lon) => [
-  { name: "City General Hospital", image: staticMapUrl(lat + 0.002, lon + 0.001), address: "Sector 5, Downtown", lat: lat + 0.002, lon: lon + 0.001, rating: 4.3 },
-  { name: "Sunrise Multi-Speciality Hospital", image: staticMapUrl(lat - 0.001, lon + 0.003), address: "Ring Road, East Wing", lat: lat - 0.001, lon: lon + 0.003, rating: 4.7 },
-  { name: "Care & Cure Hospital", image: staticMapUrl(lat + 0.003, lon - 0.002), address: "Green Valley, Phase 2", lat: lat + 0.003, lon: lon - 0.002, rating: 4.1 },
-  { name: "Hope Medical Institute", image: staticMapUrl(lat - 0.002, lon - 0.001), address: "Near Central Park", lat: lat - 0.002, lon: lon - 0.001, rating: 4.5 },
+const HOSPITAL_PLACEHOLDER_IMAGE =
+  "data:image/svg+xml;base64," +
+  Buffer.from(`
+<svg xmlns='http://www.w3.org/2000/svg' width='800' height='360'>
+  <defs>
+    <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+      <stop offset='0%' stop-color='#e0f2fe'/>
+      <stop offset='100%' stop-color='#bae6fd'/>
+    </linearGradient>
+  </defs>
+  <rect width='800' height='360' fill='url(#g)'/>
+  <rect x='40' y='60' width='720' height='240' rx='22' fill='#0f172a' opacity='0.08'/>
+  <text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='34' fill='#0f172a'>Hospital</text>
+  <text x='50%' y='62%' text-anchor='middle' dominant-baseline='middle' font-family='Arial' font-size='18' fill='#334155'>Predefined nearby listing</text>
+</svg>`.trim()).toString('base64');
+
+const PREDEFINED_HOSPITALS = [
+  {
+    name: "District Hospital Khandwa",
+    rating: 4.4,
+    address: "Civil Lines, Khandwa",
+  },
+  {
+    name: "Charitable Hospital",
+    rating: 4.2,
+    address: "Bombay Bazaar, Khandwa",
+  },
+  {
+    name: "Aarogya Hospital",
+    rating: 4.5,
+    address: "Moghat Road, Khandwa",
+  },
+  {
+    name: "Sanjeevani Hospital",
+    rating: 4.6,
+    address: "Near Bus Stand, Khandwa",
+  },
+  {
+    name: "City Care Hospital",
+    rating: 4.3,
+    address: "Anand Nagar, Khandwa",
+  },
+  {
+    name: "Lifeline Multispeciality Hospital",
+    rating: 4.7,
+    address: "Padam Nagar, Khandwa",
+  },
+  {
+    name: "Narmada Trauma Center",
+    rating: 4.5,
+    address: "Near Railway Station, Khandwa",
+  },
+  {
+    name: "Shree Krishna Hospital",
+    rating: 4.4,
+    address: "Jawar Road, Khandwa",
+  },
+  {
+    name: "Sunrise Hospital",
+    rating: 4.3,
+    address: "Teen Pulia, Khandwa",
+  },
+  {
+    name: "Metro Hospital Khandwa",
+    rating: 4.6,
+    address: "Near Ghantaghar, Khandwa",
+  },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Google Places helper                                               */
-/* ------------------------------------------------------------------ */
-const fetchGooglePlaces = async (lat, lng, type, radius = 5000) => {
-  const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-  if (!apiKey) return null;
-
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${type}&key=${apiKey}`;
-  const { data } = await axios.get(url);
-  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") return null;
-  return data.results || [];
-};
-
-const photoUrl = (ref, apiKey) =>
-  `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${ref}&key=${apiKey}`;
-
-/* ------------------------------------------------------------------ */
-/*  POST /api/location/doctors                                         */
-/* ------------------------------------------------------------------ */
+// --- POST /api/location/doctors ---
 export const findNearbyDoctors = async (req, res) => {
   try {
     const { chatId, lat, lng } = req.body;
@@ -51,28 +150,17 @@ export const findNearbyDoctors = async (req, res) => {
     const chat = await Chat.findOne({ userId, _id: chatId });
     if (!chat) return res.status(404).json({ success: false, message: "Chat not found." });
 
-    let doctors = [];
-    const googleResults = await fetchGooglePlaces(lat, lng, "doctor");
+    // Return Khandwa doctors list (9)
+    const doctors = PREDEFINED_DOCTORS.map((d, i) => ({
+      ...d,
+      lat,
+      lon: lng,
+      placeId: `predefined-doctor-${i + 1}`,
+    }));
 
-    if (googleResults && googleResults.length > 0) {
-      doctors = googleResults.slice(0, 6).map((p) => ({
-        name: p.name,
-        rating: p.rating || 0,
-        feedback: p.user_ratings_total || 0,
-        specialty: p.types?.[0]?.replace(/_/g, " ") || "General Physician",
-        address: p.vicinity || "",
-        lat: p.geometry?.location?.lat,
-        lon: p.geometry?.location?.lng,
-        placeId: p.place_id,
-      }));
-    } else {
-      doctors = mockDoctors(lat, lng);
-    }
-
-    const content = `👨‍⚕️ **Nearby Doctors** (${doctors.length} found within 5 km)`;
     const reply = {
       role: "assistant",
-      content,
+      content: buildContent("👨‍⚕️", "Nearby Doctors", doctors.length),
       timestamp: Date.now(),
       isImage: false,
       locationType: "doctors",
@@ -89,9 +177,7 @@ export const findNearbyDoctors = async (req, res) => {
   }
 };
 
-/* ------------------------------------------------------------------ */
-/*  POST /api/location/hospitals                                       */
-/* ------------------------------------------------------------------ */
+// --- POST /api/location/hospitals ---
 export const findNearbyHospitals = async (req, res) => {
   try {
     const { chatId, lat, lng } = req.body;
@@ -100,30 +186,18 @@ export const findNearbyHospitals = async (req, res) => {
     const chat = await Chat.findOne({ userId, _id: chatId });
     if (!chat) return res.status(404).json({ success: false, message: "Chat not found." });
 
-    let hospitals = [];
-    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-    const googleResults = await fetchGooglePlaces(lat, lng, "hospital");
+    // Return Khandwa hospitals list (10)
+    const hospitals = PREDEFINED_HOSPITALS.map((h, i) => ({
+      ...h,
+      image: HOSPITAL_PLACEHOLDER_IMAGE,
+      lat,
+      lon: lng,
+      placeId: `predefined-hospital-${i + 1}`,
+    }));
 
-    if (googleResults && googleResults.length > 0) {
-      hospitals = googleResults.slice(0, 6).map((p) => ({
-        name: p.name,
-        image: p.photos?.[0]?.photo_reference
-          ? photoUrl(p.photos[0].photo_reference, apiKey)
-          : staticMapUrl(p.geometry?.location?.lat, p.geometry?.location?.lng),
-        address: p.vicinity || "",
-        lat: p.geometry?.location?.lat,
-        lon: p.geometry?.location?.lng,
-        rating: p.rating || 0,
-        placeId: p.place_id,
-      }));
-    } else {
-      hospitals = mockHospitals(lat, lng);
-    }
-
-    const content = `🏥 **Nearby Hospitals** (${hospitals.length} found within 5 km)`;
     const reply = {
       role: "assistant",
-      content,
+      content: buildContent("🏥", "Nearby Hospitals", hospitals.length),
       timestamp: Date.now(),
       isImage: false,
       locationType: "hospitals",

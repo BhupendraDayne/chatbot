@@ -5,7 +5,6 @@ import { assets } from "../assets/assets";
 import Message from './Message';
 import toast from 'react-hot-toast';
 import { Mic, MicOff, Stethoscope, Building2 } from 'lucide-react';
-
 import gsap from 'gsap';
 
 const Chatbox = () => {
@@ -16,11 +15,16 @@ const Chatbox = () => {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [prompt, setPrompt] = useState('');
- 
+
   const [ispublished, setIspublished] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+
+  const [prescriptionFile, setPrescriptionFile] = useState(null);
+  const [prescriptionUploading, setPrescriptionUploading] = useState(false);
+
   const recognitionRef = useRef(null);
+  const isPrescriptionUploadingRef = useRef(false);
 
   // 🎙️ Speech recognition setup
   useEffect(() => {
@@ -28,7 +32,7 @@ const Chatbox = () => {
       const recognition = new window.webkitSpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = 'en-IN'; // change to 'hi-IN' for Hindi
+      recognition.lang = 'en-IN';
       recognition.onresult = (event) => {
         let transcript = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -42,7 +46,7 @@ const Chatbox = () => {
     }
   }, []);
 
-  // 🎬 Mic animation with GSAP (no glow)
+  // 🎬 Mic animation with GSAP
   useEffect(() => {
     if (isRecording && micRef.current) {
       gsap.to(micRef.current, {
@@ -53,10 +57,7 @@ const Chatbox = () => {
         ease: 'power1.inOut',
       });
     } else {
-      gsap.to(micRef.current, {
-        scale: 1,
-        duration: 0.3,
-      });
+      gsap.to(micRef.current, { scale: 1, duration: 0.3 });
     }
   }, [isRecording]);
 
@@ -92,21 +93,21 @@ const Chatbox = () => {
     return null;
   };
 
-  // 🔍 Find nearby doctors / hospitals (triggered from message action buttons)
+  // 🔍 Find nearby doctors / hospitals
   const handleFindNearby = (type) => {
-
     if (!navigator.geolocation) {
       toast.error('Geolocation is not supported by your browser');
       return;
     }
-    if (!user) {
-      toast('Login to find nearby ' + type);
-      return;
-    }
-    if (!selectedChat) {
-      toast('Please select a chat first');
-      return;
-    }
+    if (!user) { toast('Login to find nearby ' + type); return; }
+    if (!selectedChat) { toast('Please select a chat first'); return; }
+
+    const ok = window.confirm(
+      type === 'doctors'
+        ? 'Allow location access to find nearby doctors near you?'
+        : 'Allow location access to find nearby hospitals near you?'
+    );
+    if (!ok) return;
 
     setIsLocating(true);
     toast('📍 Locating you...');
@@ -114,14 +115,12 @@ const Chatbox = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-
         try {
           const { data } = await axios.post(
             `/api/location/${type}`,
             { chatId: selectedChat._id, lat: latitude, lng: longitude },
             { headers: { Authorization: token } }
           );
-
           if (data.success) {
             setMessages((prev) => [...prev, data.reply]);
           } else {
@@ -129,7 +128,6 @@ const Chatbox = () => {
           }
         } catch (error) {
           toast.error(error.message || `Failed to fetch nearby ${type}.`);
-          console.error(error);
         } finally {
           setIsLocating(false);
         }
@@ -145,20 +143,65 @@ const Chatbox = () => {
     );
   };
 
-  // 📩 Submit message
+  // 🩺 Upload prescription image
+  const onUploadPrescription = async () => {
+    isPrescriptionUploadingRef.current = true;
+    try {
+      if (!user) return toast('Login to upload prescription');
+      if (!selectedChat) return toast('Please select a chat first');
+      if (!prescriptionFile) return toast('Choose a prescription image to upload');
+
+      setPrescriptionUploading(true);
+      setLoading(true);
+
+      // Optimistic UI — show image immediately
+      const localPreviewUrl = URL.createObjectURL(prescriptionFile);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', content: localPreviewUrl, timestamp: Date.now(), isImage: true },
+      ]);
+
+      const fd = new FormData();
+      fd.append('file', prescriptionFile);
+      fd.append('chatId', selectedChat._id);
+      fd.append('prompt', prompt || '');
+
+      const { data } = await axios.post(`/api/message/upload/prescription`, fd, {
+        headers: { Authorization: token },
+      });
+
+      if (data.success) {
+        // ✅ Directly append the assistant reply — no reload needed
+        setMessages((prev) => [...prev, data.reply]);
+        setUser((prev) => ({ ...prev, credits: prev.credits - 2 }));
+        setPrescriptionFile(null);
+        setPrompt('');
+        toast.success('Prescription analysed!');
+      } else {
+        toast.error(data.message || 'Prescription upload failed');
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error.message || 'Prescription upload failed');
+    } finally {
+      setPrescriptionUploading(false);
+      setLoading(false);
+      isPrescriptionUploadingRef.current = false; // ✅ THE FIX — unblock selectedChat sync
+    }
+  };
+
+  // 📩 Submit text message
   const onSubmit = async (e) => {
     try {
       e.preventDefault();
       if (!user) return toast('Login to send message');
-      
-      // Check if user is asking for nearby doctors/hospitals
+
       const locationType = detectLocationIntent(prompt);
       if (locationType) {
         setPrompt('');
         handleFindNearby(locationType);
         return;
       }
-      
+
       setLoading(true);
       const promptCopy = prompt;
       setPrompt('');
@@ -176,7 +219,6 @@ const Chatbox = () => {
 
       if (data.success) {
         setMessages((prev) => [...prev, data.reply]);
-        // decrease credits
         setUser((prev) => ({ ...prev, credits: prev.credits - 1 }));
       } else {
         toast.error(data.message);
@@ -190,9 +232,11 @@ const Chatbox = () => {
     }
   };
 
-  // 📨 Load chat messages when selected chat changes
+  // 📨 Load messages when selected chat changes
   useEffect(() => {
-    if (selectedChat) {
+    if (!selectedChat) return;
+    // Only sync from server if no prescription upload is in-flight
+    if (!isPrescriptionUploadingRef.current) {
       setMessages(selectedChat.messages);
     }
   }, [selectedChat]);
@@ -219,7 +263,7 @@ const Chatbox = () => {
               alt=""
             />
             <p className="mt-3 text-3xl sm:text-5xl text-center text-gray-500 font-medium dark:text-white">
-               Ask Your Health-Related Questions
+              Ask Your Health-Related Questions
             </p>
             <div className="flex flex-wrap gap-3 mt-6 justify-center">
               <button
@@ -242,18 +286,39 @@ const Chatbox = () => {
           </div>
         )}
 
-        {messages.map((message, index) => (
-          <Message key={index} message={message} onFindNearby={handleFindNearby} />
-        ))}
+        {messages.map((message, index) => {
+          const questionText = index > 0
+            ? (messages[index - 1]?.role === 'user' ? messages[index - 1]?.content : '')
+            : '';
+          return (
+            <Message
+              key={index}
+              message={message}
+              questionText={questionText}
+              onFindNearby={handleFindNearby}
+              onSendFeedback={(value) => {
+                if (message.role !== 'assistant') return;
+                if (!user) return toast('Login to send feedback');
+                if (!questionText) return;
+                axios
+                  .post(
+                    '/api/message/feedback',
+                    { chatId: selectedChat?._id, question: questionText, answer: message.content, value },
+                    { headers: { Authorization: token } }
+                  )
+                  .then(() => toast(value === 'up' ? 'Thanks for the feedback!' : 'Feedback saved.'))
+                  .catch(() => toast.error('Failed to send feedback'));
+              }}
+            />
+          );
+        })}
 
-        {/* smart loading animation */}
         {loading && (
           <div className="flex justify-start items-start my-6">
             <Loader />
           </div>
         )}
 
-        {/* location loading indicator */}
         {isLocating && (
           <div className="flex justify-start items-start my-6">
             <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -262,7 +327,6 @@ const Chatbox = () => {
             </div>
           </div>
         )}
-
       </div>
 
       {/* Prompt input box */}
@@ -280,6 +344,35 @@ const Chatbox = () => {
           required
         />
 
+        {/* 🩺 Prescription file input (hidden) */}
+        <input
+          id="prescriptionFile"
+          type="file"
+          accept="image/*"
+          capture="camera"
+          className="hidden"
+          onChange={(e) => setPrescriptionFile(e.target.files?.[0] || null)}
+        />
+
+        {/* 🩺 Prescription upload button */}
+        <button
+          type="button"
+          onClick={() => document.getElementById('prescriptionFile')?.click()}
+          disabled={prescriptionUploading || !selectedChat}
+          className={`p-2 rounded-full transition-all relative ${
+            prescriptionUploading
+              ? 'bg-gray-300 cursor-not-allowed'
+              : 'bg-gray-200 dark:bg-gray-700 text-black dark:text-white'
+          }`}
+          title="Upload prescription"
+        >
+          <span className="text-sm">🩺</span>
+          {/* Show green dot when a file is selected but not yet sent */}
+          {prescriptionFile && !prescriptionUploading && (
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-white" />
+          )}
+        </button>
+
         {/* 🎤 Mic button */}
         <button
           type="button"
@@ -294,10 +387,14 @@ const Chatbox = () => {
           {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
         </button>
 
-        {/* 📤 Send button */}
-        <button type="submit" disabled={loading}>
+        {/* 📤 Send button — routes to prescription upload OR text submit */}
+        <button
+          type="button"
+          onClick={prescriptionFile ? onUploadPrescription : onSubmit}
+          disabled={prescriptionUploading || loading}
+        >
           <img
-            src={loading ? assets.stop_icon : assets.send_icon}
+            src={prescriptionUploading ? assets.stop_icon : assets.send_icon}
             className="w-8 cursor-pointer"
             alt=""
           />
