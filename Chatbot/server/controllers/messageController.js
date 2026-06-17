@@ -37,6 +37,14 @@ const findFallbackAnswer = async (userPrompt) => {
   }
 };
 
+const streamTextChunks = async (res, text) => {
+  const chunks = text.split("");
+  for (const chunk of chunks) {
+    res.write(chunk);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+};
+
 // --- TEXT BASED AI CHAT MESSAGE CONTROLLER (FIXED) ---
 export const textMessageController = async (req, res) => {
   try {
@@ -90,38 +98,65 @@ export const textMessageController = async (req, res) => {
 
     const userPrompt = `You are a trusted health assistant. Answer clearly and accurately. ${whoContext}User question: ${prompt}`;
 
+    const shouldStream = req.query.stream === "true";
     let replyContent = "";
     let aiResponseSuccessful = false;
 
-    try {
-      const { choices } = await openai.chat.completions.create({
-        model: "gemini-2.5-flash",
-        reasoning_effort: "medium",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an authoritative medical assistant. If WHO data is available, use it as a reference when responding.",
-          },
-          {
-            role: "user",
-            content: userPrompt,
-          },
-        ],
-      });
+    if (shouldStream) {
+      res.setHeader("Content-Type", "text/plain; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Transfer-Encoding", "chunked");
 
-      replyContent = choices[0].message.content;
-      aiResponseSuccessful = true;
-    } catch (aiError) {
-      console.error("AI API Error:", aiError.message);
-      // Fallback to predefined database
-      const fallbackAnswer = await findFallbackAnswer(prompt);
-      if (fallbackAnswer) {
-        replyContent = fallbackAnswer;
-      } else {
-        replyContent =
-          "I'm sorry, I couldn't find an answer to your question. Please consult a healthcare professional for medical advice.";
+      res.flushHeaders();
+
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gemini-2.5-flash",
+          reasoning_effort: "medium",
+          stream: true,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an authoritative medical assistant. If WHO data is available, use it as a reference when responding.",
+            },
+            {
+              role: "user",
+              content: userPrompt,
+            },
+          ],
+        });
+
+        for await (const part of stream) {
+          const delta = part.choices?.[0]?.delta?.content;
+          if (delta) {
+            replyContent += delta;
+            res.write(delta);
+          }
+        }
+
+        aiResponseSuccessful = true;
+      } catch (aiError) {
+        console.error("AI API Error:", aiError.message);
+        const fallbackAnswer = await findFallbackAnswer(prompt);
+        replyContent = fallbackAnswer
+          ? fallbackAnswer
+          : "I'm sorry, I couldn't find an answer to your question. Please consult a healthcare professional for medical advice.";
+        await streamTextChunks(res, replyContent);
       }
+
+      // Build reply, save it, and finish the stream.
+      const reply = {
+        role: "assistant",
+        content: replyContent,
+        timestamp: Date.now(),
+        isImage: false,
+      };
+      chat.messages.push(reply);
+      await chat.save();
+      await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
+      return res.end();
     }
 
     // Add nearby suggestions if health-related and location provided
@@ -154,11 +189,7 @@ export const textMessageController = async (req, res) => {
     // 4. Build reply and push to chat
     const reply = {
       role: "assistant",
-<<<<<<< HEAD
       content: replyContent,
-=======
-      content: choices[0].message.content,
->>>>>>> 6f3656c5191681a5d6d844c009722c35c813e655
       timestamp: Date.now(),
       isImage: false,
     };
@@ -168,8 +199,8 @@ export const textMessageController = async (req, res) => {
     await chat.save();
 
     // 6. Return the saved reply (now includes _id)
-    const savedReply = chat.messages[chat.messages.length - 1].toObject();
-    res.json({ success: true, reply: savedReply });
+    // const savedReply = chat.messages[chat.messages.length - 1].toObject();
+    // res.json({ success: true, reply: savedReply });
 
     // 7. Deduct credit (after sending response)
     await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
@@ -181,82 +212,76 @@ export const textMessageController = async (req, res) => {
 };
 
 // --- IMAGE GENERATION MESSAGE CONTROLLER (FIXED) ---
-<<<<<<< HEAD
-=======
-export const imageMessageController = async (req, res) => {
-  try {
-    const userId = req.user._id;
+// export const imageMessageController = async (req, res) => {
+//   try {
+//     const userId = req.user._id;
 
-    // Check credits
-    if (req.user.credits < 2) {
-      return res.json({
-        success: false,
-        message: "You don't have enough credits to use this feature",
-      });
-    }
+//     // Check credits
+//     if (req.user.credits < 2) {
+//       return res.json({
+//         success: false,
+//         message: "You don't have enough credits to use this feature",
+//       });
+//     }
 
-    const { prompt, chatId, isPublished } = req.body;
+//     const { prompt, chatId, isPublished } = req.body;
 
-    // 1. Find chat
-    const chat = await Chat.findOne({ userId, _id: chatId });
+//     // 1. Find chat
+//     const chat = await Chat.findOne({ userId, _id: chatId });
 
-    // **FIX**: Check if chat exists (Null Check)
-    if (!chat) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Chat not found or invalid Chat ID.",
-        });
-    }
+//     // **FIX**: Check if chat exists (Null Check)
+//     if (!chat) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Chat not found or invalid Chat ID.",
+//       });
+//     }
 
-    // 2. Push user message
-    chat.messages.push({
-      role: "user",
-      content: prompt,
-      timestamp: Date.now(),
-      isImage: false,
-    });
+//     // 2. Push user message
+//     chat.messages.push({
+//       role: "user",
+//       content: prompt,
+//       timestamp: Date.now(),
+//       isImage: false,
+//     });
 
-    // 3. Image Generation Logic (No change here)
-    const encodedPrompt = encodeURIComponent(prompt);
-    const generatedImageUrl = `${process.env.IMAGEKIT_URL_ENDPOINT}/ik-genimg-prompt-${encodedPrompt}/${Date.now()}.png?tr=w-800,h-800`;
-    const aiImageResponse = await axios.get(generatedImageUrl, {
-      responseType: "arraybuffer",
-    });
-    const base64Image = `dada:image/png;base64,${Buffer.from(aiImageResponse.data, "binary").toString("base64")}`;
+//     // 3. Image Generation Logic (No change here)
+//     const encodedPrompt = encodeURIComponent(prompt);
+//     const generatedImageUrl = `${process.env.IMAGEKIT_URL_ENDPOINT}/ik-genimg-prompt-${encodedPrompt}/${Date.now()}.png?tr=w-800,h-800`;
+//     const aiImageResponse = await axios.get(generatedImageUrl, {
+//       responseType: "arraybuffer",
+//     });
+//     const base64Image = `dada:image/png;base64,${Buffer.from(aiImageResponse.data, "binary").toString("base64")}`;
 
-    // 4. Upload to ImageKit
-    const uploadResponse = await imagekit.upload({
-      file: base64Image,
-      fileName: `${Date.now()}.png`,
-      folder: "Chatbot",
-    });
+//     // 4. Upload to ImageKit
+//     const uploadResponse = await imagekit.upload({
+//       file: base64Image,
+//       fileName: `${Date.now()}.png`,
+//       folder: "Chatbot",
+//     });
 
-    // 5. Build reply and push to chat
-    const reply = {
-      role: "assistant",
-      content: uploadResponse.url,
-      timestamp: Date.now(),
-      isImage: true,
-      isPublished,
-    };
-    chat.messages.push(reply);
+//     // 5. Build reply and push to chat
+//     const reply = {
+//       role: "assistant",
+//       content: uploadResponse.url,
+//       timestamp: Date.now(),
+//       isImage: true,
+//       isPublished,
+//     };
+//     chat.messages.push(reply);
 
-    // 6. Save chat so subdocuments get _id
-    await chat.save();
+//     // 6. Save chat so subdocuments get _id
+//     await chat.save();
 
-    // 7. Return the saved reply (now includes _id)
-    const savedReply = chat.messages[chat.messages.length - 1].toObject();
-    res.json({ success: true, reply: savedReply });
+//     // 7. Return the saved reply (now includes _id)
+//     const savedReply = chat.messages[chat.messages.length - 1].toObject();
+//     res.json({ success: true, reply: savedReply });
 
-    // 8. Deduct credit (after sending response)
-    await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
-  } catch (error) {
-    // Log the actual error for debugging
-    console.error("Image Message Error:", error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
->>>>>>> 6f3656c5191681a5d6d844c009722c35c813e655
+//     // 8. Deduct credit (after sending response)
+//     await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
+//   } catch (error) {
+//     // Log the actual error for debugging
+//     console.error("Image Message Error:", error);
+//     res.json({ success: false, message: error.message });
+//   }
+// };

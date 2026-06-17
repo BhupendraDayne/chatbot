@@ -75,40 +75,190 @@ const Chatbox = () => {
   };
 
   // 📩 Submit message
-  const onSubmit = async (e) => {
-    try {
-      e.preventDefault();
-      if (!user) return toast('Login to send message');
-      setLoading(true);
-      const promptCopy = prompt;
-      setPrompt('');
-      setMessages((prev) => [
-        ...prev,
-        { role: 'user', content: prompt, timestamp: Date.now() },
-      ]);
+  // const onSubmit = async (e) => {
+  //   try {
+  //     e.preventDefault();
+  //     if (!user) return toast('Login to send message');
+  //     if (!selectedChat?._id) return toast('Please select a chat first');
 
-      const { data } = await axios.post(
-        `/api/message/text`,
-        { chatId: selectedChat._id, prompt, ispublished },
-        { headers: { Authorization: token } }
-      );
+  //     setLoading(true);
+  //     const promptCopy = prompt;
+  //     const userMessage = { role: 'user', content: prompt, timestamp: Date.now() };
 
-      if (data.success) {
-        setMessages((prev) => [...prev, data.reply]);
-        // decrease credits
-      setUser((prev) => ({ ...prev, credits: prev.credits - 1 }));
+  //     setMessages((prev) => [...prev, userMessage]);
+  //     setPrompt('');
 
-      } else {
-        toast.error(data.message);
-        setPrompt(promptCopy);
-      }
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setPrompt('');
-      setLoading(false);
+  //     const response = await fetch(`/api/message/text?stream=true`, {
+  //       method: 'POST',
+  //       headers: {
+  //         Authorization: token,
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify({
+  //         chatId: selectedChat._id,
+  //         prompt,
+  //         location: selectedChat.location || null,
+  //         ispublished,
+  //       }),
+  //     });
+
+  //     if (!response.ok || !response.body) {
+  //       const errorText = await response.text();
+  //       throw new Error(errorText || 'Unable to stream response from server');
+  //     }
+
+  //     const reader = response.body.getReader();
+  //     const decoder = new TextDecoder();
+  //     let streamedText = '';
+  //     let assistantMessageAdded = false;
+
+  //     while (true) {
+  //       const { done, value } = await reader.read();
+  //       if (done) break;
+  //       const chunk = decoder.decode(value, { stream: true });
+  //       streamedText += chunk;
+
+  //       // Add assistant message on first chunk
+  //       if (!assistantMessageAdded) {
+  //         setMessages((prev) => [
+  //           ...prev,
+  //           {
+  //             role: 'assistant',
+  //             content: chunk,
+  //             timestamp: Date.now(),
+  //             isImage: false,
+  //           },
+  //         ]);
+  //         assistantMessageAdded = true;
+  //       } else {
+  //         // Update assistant message with new chunks
+  //         setMessages((prev) => {
+  //           const updated = [...prev];
+  //           updated[updated.length - 1] = {
+  //             ...updated[updated.length - 1],
+  //             content: updated[updated.length - 1].content + chunk,
+  //           };
+  //           return updated;
+  //         });
+  //       }
+  //     }
+
+  //     setUser((prev) => ({ ...prev, credits: prev.credits - 1 }));
+  //   } catch (error) {
+  //     toast.error(error.message || 'Something went wrong while streaming the answer');
+  //     setPrompt(promptCopy);
+  //     // Remove the last user message on error
+  //     setMessages((prev) => prev.slice(0, -1));
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+  const controllerRef = useRef(null);
+
+const onSubmit = async (e) => {
+  e.preventDefault();
+
+  // 🔴 अगर already loading है → STOP STREAM
+  if (loading && controllerRef.current) {
+    controllerRef.current.abort();
+    setLoading(false);
+    return;
+  }
+
+  try {
+    if (!user) return toast('Login to send message');
+    if (!selectedChat?._id) return toast('Please select a chat first');
+
+    setLoading(true);
+
+    const promptCopy = prompt;
+
+    const userMessage = {
+      role: 'user',
+      content: prompt,
+      timestamp: Date.now(),
+    };
+
+    // setMessages((prev) => [...prev, userMessage]);
+    // setPrompt('');
+
+    // 🔥 AbortController setup
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    const response = await fetch(`/api/message/text?stream=true`, {
+      method: 'POST',
+      headers: {
+        Authorization: token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chatId: selectedChat._id,
+        prompt,
+        location: selectedChat.location || null,
+        ispublished,
+      }),
+      signal: controller.signal, // 🔥 important
+    });
+
+    if (!response.ok || !response.body) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Stream failed');
     }
-  };
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    let assistantMessageAdded = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      // ✅ STREAM COMPLETE
+      if (done) {
+        break;
+      }
+
+      const chunk = decoder.decode(value, { stream: true });
+
+      // First chunk → create message
+      if (!assistantMessageAdded) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            content: chunk,
+            timestamp: Date.now(),
+            isImage: false,
+          },
+        ]);
+        assistantMessageAdded = true;
+      } else {
+        // Next chunks → update last message
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1].content += chunk;
+          return updated;
+        });
+      }
+    }
+
+    // ✅ credits update
+    setUser((prev) => ({
+      ...prev,
+      credits: prev.credits - 1,
+    }));
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('Stream stopped by user');
+    } else {
+      toast.error(error.message || 'Streaming error');
+    }
+  } finally {
+    setLoading(false); // 🔥 ALWAYS STOP LOADER
+    controllerRef.current = null;
+  }
+};
 
   // 📨 Load chat messages when selected chat changes
   useEffect(() => {
