@@ -20,13 +20,19 @@ const Login = () => {
   
     try {
       //  const {data} = await axios.post(url,{name,email,password})
-      const { data } = await axios.post(
-  `http://localhost:3000${url}`,
+     const { data } = await axios.post(
+  url,
   state === "login"
-    ? { email: email.trim(), password: password.trim() }
-     :
-  { name: name.trim(), email: email.trim(), password: password.trim() }
-)
+    ? {
+        email: email.trim(),
+        password: password.trim(),
+      }
+    : {
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim(),
+      }
+);
 
       if (data.success) {
         console.log("Login/Register Success:", data);

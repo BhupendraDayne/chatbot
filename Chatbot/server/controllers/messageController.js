@@ -5,7 +5,8 @@ import { searchWHOData } from "../configs/who.js";
 import FAQ from "../models/FAQ.js";
 import Feedback from "../models/Feedback.js";
 import multer from 'multer';
-import imagekit from "../configs/imagekit.js";
+// import imagekit from "../configs/imagekit.js";
+import imagekit from "../configs/imageKit.js";
 import { isHealthRelated } from "../utils/healthEnhancer.js";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
