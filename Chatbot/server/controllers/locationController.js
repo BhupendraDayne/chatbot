@@ -92,7 +92,7 @@ const PREDEFINED_HOSPITALS = [
   {
     name: "District Hospital Khandwa",
     rating: 4.4,
-    address: "Civil Lines, Khandwa",
+    address: "Padawa, Khandwa",
   },
   {
     name: "Charitable Hospital",
